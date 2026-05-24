@@ -51,7 +51,7 @@ export default function NewShootForm({ employee, equipment }) {
 
   useEffect(() => {
     if (!form.shoot_start || !form.shoot_end) return;
-    if (new Date(form.shoot_end) <= new Date(form.shoot_start)) return;
+    if (new Date(form.shoot_end) < new Date(form.shoot_start)) return;
     let cancelled = false;
     setChecking(true);
     fetch(
@@ -86,8 +86,8 @@ export default function NewShootForm({ employee, equipment }) {
     e.preventDefault();
     setErr(null);
 
-    if (new Date(form.shoot_end) <= new Date(form.shoot_start)) {
-      setErr("End time must be after start time.");
+    if (new Date(form.shoot_end) < new Date(form.shoot_start)) {
+      setErr("End must be on or after the start.");
       return;
     }
 
@@ -172,6 +172,7 @@ export default function NewShootForm({ employee, equipment }) {
             <input
               type="datetime-local"
               required
+              min={form.shoot_start}
               value={form.shoot_end}
               onChange={(e) => set("shoot_end", e.target.value)}
             />

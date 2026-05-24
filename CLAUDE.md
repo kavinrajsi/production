@@ -18,7 +18,8 @@ There is no test runner configured.
 - Next.js 16 App Router, **plain JavaScript** (no TypeScript). React 19.
 - React Compiler is **enabled** (`next.config.mjs`) — do not add manual
   `useMemo` / `useCallback` without a measured reason.
-- Supabase for auth + Postgres. ZeptoMail (Zoho) for email.
+- Supabase for auth + Postgres. ZeptoMail (Zoho) for email. Vercel Blob for
+  equipment image storage.
 - Path alias `@/*` → `src/*` (`jsconfig.json`).
 
 ## Architecture
@@ -79,6 +80,38 @@ negative, it deletes the just-inserted shoot and throws an error with
 (see `src/app/api/shoots/route.js`). Preserve this pattern when changing
 booking logic.
 
+### Image uploads → Vercel Blob
+
+Equipment images are uploaded directly from the browser to Vercel Blob using
+the client-upload pattern (`@vercel/blob/client`):
+
+- Client (`EquipmentForm.js`) calls `upload(path, file, { handleUploadUrl: "/api/upload" })`.
+- Server route `src/app/api/upload/route.js` uses `handleUpload` from
+  `@vercel/blob/client` to mint a one-time upload token, gated by
+  `requireRole("admin")` inside `onBeforeGenerateToken`.
+- `production_equipment.image_url` stores the resulting public Blob URL — the
+  DB schema is unchanged, just a different host.
+
+Requires `BLOB_READ_WRITE_TOKEN` (auto-injected on Vercel; `vercel env pull`
+for local). Uploads are restricted to JPEG/PNG/WebP/GIF up to 10 MB and get a
+random suffix to avoid collisions. Don't switch to server-side `put()` for new
+upload paths unless the file size is small and known — the 4.5 MB serverless
+body limit will bite.
+
+**Shoot photos** (`production_shoot_photos` table, two-step flow):
+
+1. Client calls `upload()` → `POST /api/shoots/[id]/photos/upload-token` mints
+   the token after verifying photographer-or-admin and the per-kind status
+   gate in `canUploadPhotoKind(shoot.status, kind)` (`before` ↔ planned/in_progress,
+   `after` ↔ in_progress/completed). `kind` is passed via `clientPayload`.
+2. After `upload()` resolves, the client `POST`s `{ kind, url }` to
+   `/api/shoots/[id]/photos` which re-checks auth + status, validates the URL
+   is a `*.public.blob.vercel-storage.com` host, and inserts the row.
+
+The second step exists because `handleUpload`'s `onUploadCompleted` callback
+can't reach `localhost` in dev. Don't try to consolidate into one route by
+relying solely on the callback.
+
 ### Email is fire-and-forget
 
 `src/lib/email/zepto.js` returns `{ ok: false, skipped: true }` when env vars
@@ -111,3 +144,4 @@ Required (see `README.md` for the full template):
 - `SUPABASE_SERVICE_ROLE_KEY` (server only)
 - `ZEPTO_API_TOKEN`, `ZEPTO_API_URL`, `ZEPTO_FROM_EMAIL`, `ZEPTO_FROM_NAME`
 - `ADMIN_NOTIFY_EMAILS` (optional fallback recipient list)
+- `BLOB_READ_WRITE_TOKEN` (server only, for Vercel Blob image uploads)

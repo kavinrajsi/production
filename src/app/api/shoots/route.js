@@ -17,9 +17,9 @@ export async function POST(request) {
       { status: 400 }
     );
   }
-  if (new Date(body.shoot.shoot_end) <= new Date(body.shoot.shoot_start)) {
+  if (new Date(body.shoot.shoot_end) < new Date(body.shoot.shoot_start)) {
     return NextResponse.json(
-      { error: "shoot_end must be after shoot_start" },
+      { error: "shoot_end must be on or after shoot_start" },
       { status: 400 }
     );
   }

@@ -23,8 +23,6 @@ export default async function ProfilePage() {
     ["Personal email", e.personal_email],
     ["Mobile", e.mobile_number],
     ["Date of joining", e.date_of_joining],
-    ["Status", e.employee_status],
-    ["Type", e.employee_type],
   ];
 
   return (

@@ -30,8 +30,14 @@ export async function proxy(request) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
+  const authPaths = new Set([
+    "/login",
+    "/signup",
+    "/forgot-password",
+    "/reset-password",
+  ]);
   const isPublic =
-    pathname === "/login" ||
+    authPaths.has(pathname) ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api/auth") ||
     pathname === "/favicon.ico";
@@ -43,7 +49,12 @@ export async function proxy(request) {
     return NextResponse.redirect(url);
   }
 
-  if (user && pathname === "/login") {
+  if (
+    user &&
+    (pathname === "/login" ||
+      pathname === "/signup" ||
+      pathname === "/forgot-password")
+  ) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     url.searchParams.delete("next");

@@ -9,33 +9,58 @@ import {
   ALLOWED_EMAIL_DOMAIN,
 } from "@/lib/auth/emailDomain";
 
-export default function LoginForm({ next }) {
+export default function SignupForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [err, setErr] = useState(null);
+  const [info, setInfo] = useState(null);
   const [loading, setLoading] = useState(false);
 
   async function onSubmit(e) {
     e.preventDefault();
     setErr(null);
+    setInfo(null);
+
     if (!isAllowedEmail(email)) {
       setErr(EMAIL_DOMAIN_ERROR);
       return;
     }
+    if (password !== confirm) {
+      setErr("Passwords do not match.");
+      return;
+    }
+    if (password.length < 8) {
+      setErr("Password must be at least 8 characters.");
+      return;
+    }
+
     setLoading(true);
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/api/auth/callback?next=/`,
+      },
     });
     setLoading(false);
+
     if (error) {
       setErr(error.message);
       return;
     }
-    router.replace(next || "/");
-    router.refresh();
+
+    if (data?.session) {
+      router.replace("/");
+      router.refresh();
+      return;
+    }
+
+    setInfo(
+      "Check your inbox to confirm your email before signing in."
+    );
   }
 
   return (
@@ -53,13 +78,24 @@ export default function LoginForm({ next }) {
       <input
         type="password"
         required
-        autoComplete="current-password"
+        autoComplete="new-password"
+        minLength={8}
         value={password}
         onChange={(e) => setPassword(e.target.value)}
       />
+      <label>Confirm password</label>
+      <input
+        type="password"
+        required
+        autoComplete="new-password"
+        minLength={8}
+        value={confirm}
+        onChange={(e) => setConfirm(e.target.value)}
+      />
       {err ? <div className="alert error">{err}</div> : null}
+      {info ? <div className="alert">{info}</div> : null}
       <button type="submit" disabled={loading}>
-        {loading ? "Signing in…" : "Sign in"}
+        {loading ? "Creating account…" : "Create account"}
       </button>
     </form>
   );

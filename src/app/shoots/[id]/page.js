@@ -2,7 +2,15 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { requireEmployee } from "@/lib/auth/currentEmployee";
-import { getShoot } from "@/lib/db/shoots";
+import { getShoot, nextStatuses } from "@/lib/db/shoots";
+import StatusEditor from "./StatusEditor";
+
+function statusClass(s) {
+  if (s === "completed") return "green";
+  if (s === "cancelled") return "red";
+  if (s === "in_progress") return "amber";
+  return "";
+}
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +24,7 @@ function fmt(iso) {
 }
 
 export default async function ShootDetailPage({ params }) {
-  await requireEmployee();
+  const ctx = await requireEmployee();
   const { id } = await params;
   const supabase = await createClient();
   const shoot = await getShoot(supabase, id);
@@ -27,10 +35,18 @@ export default async function ShootDetailPage({ params }) {
       .filter(Boolean)
       .join(" ") || shoot.employees?.work_email;
 
+  const isAdmin = ctx.roles.includes("admin");
+  const isOwner = shoot.photographer_id === ctx.employee.id;
+  const canEditStatus = isAdmin || isOwner;
+  const nextOptions = nextStatuses(shoot.status);
+
   return (
     <div className="stack">
       <div className="toolbar">
         <h1 style={{ margin: 0 }}>{shoot.title}</h1>
+        <Link href={`/shoots/${shoot.id}/photos`} className="btn secondary">
+          Photos
+        </Link>
         <Link href="/shoots" className="btn secondary">
           Back to list
         </Link>
@@ -44,7 +60,12 @@ export default async function ShootDetailPage({ params }) {
           </div>
           <div>
             <div className="muted">Status</div>
-            <span className="badge">{shoot.status}</span>
+            <span className={`badge ${statusClass(shoot.status)}`}>
+              {shoot.status}
+            </span>
+            {canEditStatus ? (
+              <StatusEditor shootId={shoot.id} options={nextOptions} />
+            ) : null}
           </div>
           <div>
             <div className="muted">Client</div>

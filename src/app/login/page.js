@@ -1,3 +1,4 @@
+import Link from "next/link";
 import LoginForm from "./LoginForm";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +11,10 @@ export default async function LoginPage({ searchParams }) {
       {sp.error ? <div className="alert error">{sp.error}</div> : null}
       <LoginForm next={sp.next || "/"} />
       <p className="muted" style={{ fontSize: 13 }}>
-        Don&rsquo;t have an account? Ask an admin to add you.
+        <Link href="/forgot-password">Forgot password?</Link>
+      </p>
+      <p className="muted" style={{ fontSize: 13 }}>
+        Don&rsquo;t have an account? <Link href="/signup">Create one</Link>
       </p>
     </div>
   );

@@ -69,6 +69,36 @@ Availability is computed by calling the Postgres RPC
 (`throw` with `err.code = "AVAILABILITY"` → 409 in the route) if anything is
 oversold.
 
+## Image uploads (Vercel Blob)
+
+Equipment images go to **Vercel Blob**, not Supabase Storage. The flow:
+
+- Browser calls `upload()` from `@vercel/blob/client` in
+  `src/app/admin/equipment/EquipmentForm.js`.
+- The client hits `POST /api/upload` (`src/app/api/upload/route.js`), which
+  uses `handleUpload` to mint a short-lived token. The route gates with
+  `requireRole("admin")` inside `onBeforeGenerateToken` — that's where you
+  add any extra checks (size, content type are already constrained there).
+- The browser uploads the file straight to Blob and we save the returned
+  public URL to `production_equipment.image_url`.
+
+Requires `BLOB_READ_WRITE_TOKEN` (auto on Vercel; `vercel env pull` locally).
+Use this client-upload pattern for any new file uploads — server-side `put()`
+hits the 4.5 MB serverless body limit.
+
+**Shoot photos** follow the same client-upload flow but with a two-step
+record:
+
+1. `POST /api/shoots/[id]/photos/upload-token` — `handleUpload` token mint,
+   gated by photographer-or-admin and `canUploadPhotoKind(shoot.status, kind)`
+   in `src/lib/db/shoots.js`. `kind` comes through `clientPayload`.
+2. After `upload()` resolves the client `POST`s `{ kind, url }` to
+   `/api/shoots/[id]/photos` which inserts a `production_shoot_photos` row
+   (after re-checking auth, status, and that the URL is a Vercel Blob host).
+
+Step 2 exists because `onUploadCompleted` can't reach localhost from Vercel
+in dev — don't drop it to consolidate routes.
+
 ## Email
 
 `src/lib/email/zepto.js` posts to ZeptoMail. It returns `{ ok: false, skipped: true }`
@@ -120,6 +150,7 @@ See `README.md` for the full list. Quick reference:
 - `SUPABASE_SERVICE_ROLE_KEY` — server only, used by `createAdminClient`
 - `ZEPTO_API_TOKEN`, `ZEPTO_API_URL`, `ZEPTO_FROM_EMAIL`, `ZEPTO_FROM_NAME`
 - `ADMIN_NOTIFY_EMAILS` — optional fallback recipient list
+- `BLOB_READ_WRITE_TOKEN` — server only, used by `POST /api/upload`
 
 ## Commands
 

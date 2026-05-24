@@ -36,7 +36,14 @@ when new shoots are booked.
 
    # Optional fallback admin notification list (comma-separated)
    ADMIN_NOTIFY_EMAILS=
+
+   # Vercel Blob (equipment image uploads)
+   BLOB_READ_WRITE_TOKEN=<vercel-blob-token>
    ```
+
+   `BLOB_READ_WRITE_TOKEN` is auto-injected on Vercel deploys once you create a
+   Blob store and link it to the project. For local dev, run
+   `vercel env pull .env.local` to fetch it.
 
    The service-role key is used only on the server (admin actions, availability
    checks, fire-and-forget emails). Never expose it to the client.
@@ -80,6 +87,7 @@ The app expects these Supabase tables and RPCs:
 | `/shoots`                  | employee | List shoots                                   |
 | `/shoots/new`              | employee | Book a shoot and pick equipment               |
 | `/shoots/[id]`             | employee | Shoot detail                                  |
+| `/shoots/[id]/photos`      | employee | View / upload before & after photos           |
 | `/equipment`               | employee | Browse the equipment catalog                  |
 | `/profile`, `/users`       | employee | Profile and directory                         |
 | `/admin/equipment`         | admin    | Manage catalog (create, edit, retire)         |
@@ -87,6 +95,10 @@ The app expects these Supabase tables and RPCs:
 | `POST /api/equipment`      | admin    | Create catalog item                           |
 | `POST /api/shoots`         | employee | Create a shoot with reserved equipment        |
 | `/api/shoots/availability` | employee | Availability check for a date range           |
+| `POST /api/upload`         | admin    | Vercel Blob client-upload token (equipment)   |
+| `POST /api/shoots/[id]/photos/upload-token` | photographer/admin | Vercel Blob client-upload token (shoot photos) |
+| `POST /api/shoots/[id]/photos`              | photographer/admin | Record an uploaded shoot photo (kind + url) |
+| `PATCH /api/shoots/[id]`                    | photographer/admin | Update shoot status (forward-only)          |
 
 ## Project layout
 

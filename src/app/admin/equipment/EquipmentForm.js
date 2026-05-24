@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { upload } from "@vercel/blob/client";
 
 export default function EquipmentForm({ initial, equipmentId }) {
   const router = useRouter();
@@ -16,6 +17,26 @@ export default function EquipmentForm({ initial, equipmentId }) {
   });
   const [err, setErr] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  async function onFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setErr(null);
+    setUploading(true);
+    try {
+      const blob = await upload(`equipment/${file.name}`, file, {
+        access: "public",
+        handleUploadUrl: "/api/upload",
+      });
+      set("image_url", blob.url);
+    } catch (e2) {
+      setErr(e2?.message || "Upload failed");
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
+  }
 
   function set(k, v) {
     setForm((f) => ({ ...f, [k]: v }));
@@ -87,12 +108,41 @@ export default function EquipmentForm({ initial, equipmentId }) {
           />
         </div>
         <div>
-          <label>Image URL</label>
+          <label>Image</label>
           <input
-            value={form.image_url}
-            onChange={(e) => set("image_url", e.target.value)}
-            placeholder="https://…"
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            onChange={onFile}
+            disabled={uploading}
           />
+          {uploading ? (
+            <div className="muted" style={{ marginTop: 4 }}>
+              Uploading…
+            </div>
+          ) : null}
+          {form.image_url ? (
+            <div style={{ marginTop: 8 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={form.image_url}
+                alt="Preview"
+                style={{
+                  maxWidth: 160,
+                  maxHeight: 120,
+                  borderRadius: 6,
+                  display: "block",
+                }}
+              />
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => set("image_url", "")}
+                style={{ marginTop: 4 }}
+              >
+                Remove image
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -109,7 +159,7 @@ export default function EquipmentForm({ initial, equipmentId }) {
       {err ? <div className="alert error">{err}</div> : null}
 
       <div style={{ display: "flex", gap: 8 }}>
-        <button type="submit" disabled={busy}>
+        <button type="submit" disabled={busy || uploading}>
           {busy ? "Saving…" : isEdit ? "Save changes" : "Add equipment"}
         </button>
         <button

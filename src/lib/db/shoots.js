@@ -1,3 +1,77 @@
+export const SHOOT_STATUSES = [
+  "planned",
+  "in_progress",
+  "completed",
+  "cancelled",
+];
+
+const STATUS_TRANSITIONS = {
+  planned: ["in_progress", "cancelled"],
+  in_progress: ["completed", "cancelled"],
+  completed: [],
+  cancelled: [],
+};
+
+export function nextStatuses(current) {
+  return STATUS_TRANSITIONS[current] ?? [];
+}
+
+export function canTransition(from, to) {
+  return nextStatuses(from).includes(to);
+}
+
+export async function updateShootStatus(supabaseAdmin, id, status) {
+  const { data, error } = await supabaseAdmin
+    .from("production_shoots")
+    .update({ status })
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export const SHOOT_PHOTO_KINDS = ["before", "after"];
+
+const PHOTO_KIND_STATUSES = {
+  before: ["planned", "in_progress"],
+  after: ["in_progress", "completed"],
+};
+
+export function canUploadPhotoKind(shootStatus, kind) {
+  return (PHOTO_KIND_STATUSES[kind] ?? []).includes(shootStatus);
+}
+
+export async function listShootPhotos(supabase, shootId) {
+  const { data, error } = await supabase
+    .from("production_shoot_photos")
+    .select(
+      "id, kind, url, uploaded_at, employees:uploaded_by ( first_name, last_name, work_email )"
+    )
+    .eq("shoot_id", shootId)
+    .order("uploaded_at", { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function recordShootPhoto(
+  supabaseAdmin,
+  { shootId, kind, url, uploadedBy }
+) {
+  const { data, error } = await supabaseAdmin
+    .from("production_shoot_photos")
+    .insert({
+      shoot_id: shootId,
+      kind,
+      url,
+      uploaded_by: uploadedBy ?? null,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 export async function listShoots(supabase, { photographerId } = {}) {
   let q = supabase
     .from("production_shoots")
