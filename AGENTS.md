@@ -74,7 +74,7 @@ oversold.
 Equipment images go to **Vercel Blob**, not Supabase Storage. The flow:
 
 - Browser calls `upload()` from `@vercel/blob/client` in
-  `src/app/admin/equipment/EquipmentForm.js`.
+  `src/app/equipment/EquipmentForm.js`.
 - The client hits `POST /api/upload` (`src/app/api/upload/route.js`), which
   uses `handleUpload` to mint a short-lived token. The route gates with
   `requireRole("admin")` inside `onBeforeGenerateToken` — that's where you

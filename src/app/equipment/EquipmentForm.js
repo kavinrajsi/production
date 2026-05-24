@@ -61,7 +61,7 @@ export default function EquipmentForm({ initial, equipmentId }) {
       setErr(e2.error || "Save failed");
       return;
     }
-    router.push("/admin/equipment");
+    router.push("/equipment");
     router.refresh();
   }
 
@@ -165,7 +165,7 @@ export default function EquipmentForm({ initial, equipmentId }) {
         <button
           type="button"
           className="secondary"
-          onClick={() => router.push("/admin/equipment")}
+          onClick={() => router.push("/equipment")}
         >
           Cancel
         </button>

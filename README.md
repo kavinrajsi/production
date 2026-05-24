@@ -88,9 +88,10 @@ The app expects these Supabase tables and RPCs:
 | `/shoots/new`              | employee | Book a shoot and pick equipment               |
 | `/shoots/[id]`             | employee | Shoot detail                                  |
 | `/shoots/[id]/photos`      | employee | View / upload before & after photos           |
-| `/equipment`               | employee | Browse the equipment catalog                  |
+| `/equipment`               | employee | Browse the equipment catalog (admins also see retired items + add/edit/delete) |
+| `/equipment/new`           | admin    | Add a catalog item                            |
+| `/equipment/[id]/edit`     | admin    | Edit a catalog item                           |
 | `/profile`, `/users`       | employee | Profile and directory                         |
-| `/admin/equipment`         | admin    | Manage catalog (create, edit, retire)         |
 | `/admin/activity`          | admin    | Activity log                                  |
 | `POST /api/equipment`      | admin    | Create catalog item                           |
 | `POST /api/shoots`         | employee | Create a shoot with reserved equipment        |

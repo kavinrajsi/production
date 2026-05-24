@@ -12,7 +12,6 @@ import {
   IconClose,
   IconDashboard,
   IconMenu,
-  IconSettings,
   IconSidebar,
   IconSignOut,
   IconUser,
@@ -75,14 +74,7 @@ export default function Sidebar({ user, employee, roles }) {
     { href: "/equipment", label: "Equipment", icon: IconBox },
     { href: "/users", label: "Users", icon: IconUsers },
     ...(isAdmin
-      ? [
-          {
-            href: "/admin/equipment",
-            label: "Manage Equipment",
-            icon: IconSettings,
-          },
-          { href: "/admin/activity", label: "Activity", icon: IconActivity },
-        ]
+      ? [{ href: "/admin/activity", label: "Activity", icon: IconActivity }]
       : []),
   ];
 

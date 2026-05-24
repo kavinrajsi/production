@@ -40,18 +40,12 @@ export default async function HomePage({ searchParams }) {
         </Link>
         <Link href="/equipment" className="card" style={{ display: "block" }}>
           <h2 style={{ marginTop: 0 }}>Equipment catalog</h2>
-          <p className="muted">Browse what&rsquo;s available.</p>
+          <p className="muted">
+            {isAdmin
+              ? "Browse, add, edit, or retire catalog items."
+              : "Browse what’s available."}
+          </p>
         </Link>
-        {isAdmin ? (
-          <Link
-            href="/admin/equipment"
-            className="card"
-            style={{ display: "block" }}
-          >
-            <h2 style={{ marginTop: 0 }}>Manage equipment</h2>
-            <p className="muted">Add, edit, or retire catalog items.</p>
-          </Link>
-        ) : null}
       </div>
     </div>
   );
