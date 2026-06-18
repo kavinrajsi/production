@@ -46,7 +46,7 @@ export default async function EquipmentPage() {
                 <tr>
                   <th>Name</th>
                   <th>Description</th>
-                  <th className="right">Quantity</th>
+                  <th>Quantity</th>
                   {isAdmin ? <th>Status</th> : null}
                   {isAdmin ? <th></th> : null}
                 </tr>
@@ -56,7 +56,7 @@ export default async function EquipmentPage() {
                   <tr key={it.id}>
                     <td>{it.name}</td>
                     <td className="muted">{it.description || "—"}</td>
-                    <td className="right">{it.quantity}</td>
+                    <td>{it.quantity}</td>
                     {isAdmin ? (
                       <td>
                         {it.is_active ? (
@@ -67,7 +67,7 @@ export default async function EquipmentPage() {
                       </td>
                     ) : null}
                     {isAdmin ? (
-                      <td className="right">
+                      <td>
                         <Link href={`/equipment/${it.id}/edit`}>Edit</Link>
                         <span style={{ margin: "0 8px" }}>·</span>
                         <DeleteButton id={it.id} />

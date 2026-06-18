@@ -104,7 +104,7 @@ export default async function ShootDetailPage({ params }) {
               <tr>
                 <th>Item</th>
                 <th>Category</th>
-                <th className="right">Qty</th>
+                <th>Qty</th>
               </tr>
             </thead>
             <tbody>
@@ -119,7 +119,7 @@ export default async function ShootDetailPage({ params }) {
                     ) : null}
                   </td>
                   <td>{row.equipment?.category || "—"}</td>
-                  <td className="right">{row.quantity}</td>
+                  <td>{row.quantity}</td>
                 </tr>
               ))}
             </tbody>

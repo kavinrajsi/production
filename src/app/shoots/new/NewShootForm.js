@@ -207,10 +207,8 @@ export default function NewShootForm({ employee, equipment }) {
             <thead>
               <tr>
                 <th>Item</th>
-                <th className="right">Available</th>
-                <th className="right" style={{ width: 110 }}>
-                  Qty
-                </th>
+                <th>Available</th>
+                <th style={{ width: 110 }}>Qty</th>
               </tr>
             </thead>
             <tbody>
@@ -229,14 +227,14 @@ export default function NewShootForm({ employee, equipment }) {
                         </div>
                       ) : null}
                     </td>
-                    <td className="right">
+                    <td>
                       <span
                         className={`badge ${max <= 0 ? "red" : max < it.quantity ? "amber" : "green"}`}
                       >
                         {Math.max(0, max)} / {it.quantity}
                       </span>
                     </td>
-                    <td className="right">
+                    <td>
                       <input
                         type="number"
                         inputMode="numeric"

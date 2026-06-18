@@ -75,7 +75,7 @@ export default async function ProfilePage() {
 
       <h2>Details</h2>
       <div className="card">
-        <table>
+        <table className="table-left">
           <tbody>
             {rows.map(([k, v]) => (
               <tr key={k}>
