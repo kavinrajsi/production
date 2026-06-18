@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { upload } from "@vercel/blob/client";
+import { blockNonInteger, blurOnWheel, clampInt } from "@/lib/forms/number";
 
 export default function EquipmentForm({ initial, equipmentId }) {
   const router = useRouter();
@@ -101,10 +102,15 @@ export default function EquipmentForm({ initial, equipmentId }) {
           <label>Quantity *</label>
           <input
             type="number"
+            inputMode="numeric"
+            step={1}
             min={0}
             required
             value={form.quantity}
+            onKeyDown={blockNonInteger}
+            onWheel={blurOnWheel}
             onChange={(e) => set("quantity", e.target.value)}
+            onBlur={(e) => set("quantity", clampInt(e.target.value, 0))}
           />
         </div>
         <div>

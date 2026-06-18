@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { blockNonInteger, blurOnWheel, clampInt } from "@/lib/forms/number";
 
 function toLocalIso(d) {
   const pad = (n) => String(n).padStart(2, "0");
@@ -238,12 +239,16 @@ export default function NewShootForm({ employee, equipment }) {
                     <td className="right">
                       <input
                         type="number"
+                        inputMode="numeric"
+                        step={1}
                         min={0}
                         max={Math.max(0, max)}
                         value={currentPicked}
                         disabled={max <= 0}
+                        onKeyDown={blockNonInteger}
+                        onWheel={blurOnWheel}
                         onChange={(e) =>
-                          setQty(it.id, Number(e.target.value || 0))
+                          setQty(it.id, clampInt(e.target.value, 0, Math.max(0, max)))
                         }
                       />
                     </td>
