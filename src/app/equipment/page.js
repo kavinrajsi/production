@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
 import { requireEmployee } from "@/lib/auth/currentEmployee";
 import { listEquipment } from "@/lib/db/equipment";
 import DeleteButton from "./DeleteButton";
@@ -9,8 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function EquipmentPage() {
   const ctx = await requireEmployee();
   const isAdmin = ctx.roles.includes("admin");
-  const supabase = await createClient();
-  const items = await listEquipment(supabase, { includeInactive: isAdmin });
+  const items = await listEquipment({ includeInactive: isAdmin });
 
   const grouped = items.reduce((acc, it) => {
     const k = it.category || "Uncategorized";

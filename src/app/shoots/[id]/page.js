@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
 import { requireEmployee } from "@/lib/auth/currentEmployee";
 import { getShoot, nextStatuses } from "@/lib/db/shoots";
 import StatusEditor from "./StatusEditor";
@@ -26,8 +25,7 @@ function fmt(iso) {
 export default async function ShootDetailPage({ params }) {
   const ctx = await requireEmployee();
   const { id } = await params;
-  const supabase = await createClient();
-  const shoot = await getShoot(supabase, id);
+  const shoot = await getShoot(id);
   if (!shoot) notFound();
 
   const photographerName =

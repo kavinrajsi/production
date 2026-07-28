@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { authClient } from "@/lib/auth/client";
 import {
   isAllowedEmail,
   EMAIL_DOMAIN_ERROR,
@@ -24,15 +24,14 @@ export default function ForgotPasswordForm() {
       return;
     }
     setLoading(true);
-
-    const supabase = createClient();
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/api/auth/callback?next=/reset-password`,
+    const { error } = await authClient.requestPasswordReset({
+      email,
+      redirectTo: `${window.location.origin}/reset-password`,
     });
     setLoading(false);
 
     if (error) {
-      setErr(error.message);
+      setErr(error.message || "Request failed.");
       return;
     }
     setInfo("If an account exists for that email, a reset link is on its way.");

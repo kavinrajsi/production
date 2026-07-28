@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { requireRole } from "@/lib/auth/requireRole";
 import { getEquipment } from "@/lib/db/equipment";
 import EquipmentForm from "../../EquipmentForm";
@@ -9,8 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function EditEquipmentPage({ params }) {
   await requireRole("admin");
   const { id } = await params;
-  const supabase = await createClient();
-  const item = await getEquipment(supabase, id);
+  const item = await getEquipment(id);
   if (!item) notFound();
 
   return (

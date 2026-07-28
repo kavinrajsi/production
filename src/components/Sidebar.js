@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { authClient } from "@/lib/auth/client";
 import {
   IconActivity,
   IconBox,
@@ -57,8 +57,7 @@ export default function Sidebar({ user, employee, roles }) {
   }
 
   async function signOut() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
+    await authClient.signOut();
     router.replace("/login");
     router.refresh();
   }

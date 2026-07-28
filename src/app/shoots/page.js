@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
 import { requireEmployee } from "@/lib/auth/currentEmployee";
 import { listShoots } from "@/lib/db/shoots";
 
@@ -17,8 +16,7 @@ function fmt(iso) {
 export default async function ShootsPage() {
   const ctx = await requireEmployee();
   const isAdmin = ctx.roles.includes("admin");
-  const supabase = await createClient();
-  const shoots = await listShoots(supabase, {
+  const shoots = await listShoots({
     photographerId: isAdmin ? undefined : ctx.employee.id,
   });
 

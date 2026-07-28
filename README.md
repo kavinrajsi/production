@@ -8,7 +8,8 @@ when new shoots are booked.
 
 - **Next.js 16** (App Router, JavaScript) with the React Compiler enabled
 - **React 19**
-- **Supabase** for authentication, Postgres, and Row Level Security
+- **Neon** Postgres (`@neondatabase/serverless`) with **Neon Auth**
+  (`@neondatabase/auth`) for email/password authentication
 - **ZeptoMail** (Zoho) for transactional email
 - **ESLint 9** (`eslint-config-next`)
 
@@ -23,10 +24,13 @@ when new shoots are booked.
 2. Create a `.env.local` at the repo root:
 
    ```bash
-   # Supabase
-   NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
-   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable-key>
-   SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
+   # Neon Postgres
+   DATABASE_URL=postgresql://<user>:<password>@<pooler-host>/<db>?sslmode=require
+
+   # Neon Auth (enable Auth on the Neon project to get the base URL;
+   # generate the cookie secret with: openssl rand -base64 32)
+   NEON_AUTH_BASE_URL=https://<your-neon-auth-url>.neon.tech
+   NEON_AUTH_COOKIE_SECRET=<at-least-32-chars>
 
    # ZeptoMail (Zoho)
    ZEPTO_API_TOKEN=Zoho-enczapikey <token>
@@ -45,10 +49,13 @@ when new shoots are booked.
    Blob store and link it to the project. For local dev, run
    `vercel env pull .env.local` to fetch it.
 
-   The service-role key is used only on the server (admin actions, availability
-   checks, fire-and-forget emails). Never expose it to the client.
+3. Apply the schema to your Neon database:
 
-3. Run the dev server:
+   ```bash
+   psql "$DATABASE_URL" -f db/schema.sql
+   ```
+
+4. Run the dev server:
 
    ```bash
    npm run dev
@@ -68,22 +75,28 @@ when new shoots are booked.
 
 ## Database
 
-The app expects these Supabase tables and RPCs:
+The schema lives in `db/schema.sql` and creates:
 
-- `employees` — keyed by `work_email` (matched against the auth user)
+- `employees` — keyed by `work_email` (matched case-insensitively against the
+  auth user's email)
 - `roles`, `employee_roles` — role assignments (`admin`, etc.)
 - `production_equipment` — catalog items with `quantity` and `is_active`
 - `production_shoots` — shoot bookings
 - `production_shoot_equipment` — line items linking shoots to equipment
-- RPC `equipment_available_qty(p_equipment_id, p_start, p_end, p_exclude_shoot_id)`
+- `production_shoot_photos` — before/after photo records
+- `activity_logs` — admin activity feed
+- Function `equipment_available_qty(p_equipment_id, p_start, p_end, p_exclude_shoot_id)`
   — returns the remaining available units in a date range
+
+Auth users live in Neon Auth (managed); an employee row with a matching
+`work_email` must exist before a signed-in user can use the app.
 
 ## Routes
 
 | Path                       | Who      | Purpose                                       |
 | -------------------------- | -------- | --------------------------------------------- |
 | `/`                        | employee | Dashboard                                     |
-| `/login`                   | public   | Email/password sign-in via Supabase           |
+| `/login`                   | public   | Email/password sign-in via Neon Auth          |
 | `/shoots`                  | employee | List shoots                                   |
 | `/shoots/new`              | employee | Book a shoot and pick equipment               |
 | `/shoots/[id]`             | employee | Shoot detail                                  |
@@ -104,14 +117,15 @@ The app expects these Supabase tables and RPCs:
 ## Project layout
 
 ```
+db/
+  schema.sql      Postgres schema for Neon
 src/
   app/            App Router pages and API routes
   components/     Sidebar, theme toggle, icons
   lib/
-    auth/         Session and role helpers
-    db/           Supabase queries (equipment, shoots)
+    auth/         Neon Auth server/client instances, session and role helpers
+    db/           Neon SQL client and queries (equipment, shoots, employees)
     email/        ZeptoMail client and templates
-    supabase/     Browser, server, and admin client factories
   proxy.js        Auth middleware (redirects to /login)
 ```
 

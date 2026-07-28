@@ -1,9 +1,12 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getAuthUser } from "@/lib/auth/currentEmployee";
 import SignupForm from "./SignupForm";
 
 export const dynamic = "force-dynamic";
 
 export default async function SignupPage({ searchParams }) {
+  if (await getAuthUser()) redirect("/");
   const sp = (await searchParams) || {};
   return (
     <div className="stack" style={{ maxWidth: 360, margin: "40px auto" }}>

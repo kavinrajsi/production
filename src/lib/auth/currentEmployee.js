@@ -1,38 +1,21 @@
 import { cache } from "react";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { auth } from "@/lib/auth/server";
+import { getEmployeeByEmail, getEmployeeRoles } from "@/lib/db/employees";
 
 export const getAuthUser = cache(async () => {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user ?? null;
+  const { data: session } = await auth.getSession();
+  return session?.user ?? null;
 });
 
 export const getCurrentEmployee = cache(async () => {
   const user = await getAuthUser();
   if (!user?.email) return { user: null, employee: null, roles: [] };
 
-  const supabase = await createClient();
-
-  const { data: employee } = await supabase
-    .from("employees")
-    .select("*")
-    .ilike("work_email", user.email)
-    .maybeSingle();
-
+  const employee = await getEmployeeByEmail(user.email);
   if (!employee) return { user, employee: null, roles: [] };
 
-  const { data: roleRows } = await supabase
-    .from("employee_roles")
-    .select("roles(name)")
-    .eq("employee_id", employee.id);
-
-  const roles = (roleRows ?? [])
-    .map((r) => r.roles?.name)
-    .filter(Boolean);
-
+  const roles = await getEmployeeRoles(employee.id);
   return { user, employee, roles };
 });
 

@@ -1,69 +1,13 @@
-import { NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
+import { auth } from "@/lib/auth/server";
 
-export async function proxy(request) {
-  let response = NextResponse.next({ request });
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
-          response = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          );
-        },
-      },
-    }
-  );
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const { pathname } = request.nextUrl;
-  const authPaths = new Set([
-    "/login",
-    "/signup",
-    "/forgot-password",
-    "/reset-password",
-  ]);
-  const isPublic =
-    authPaths.has(pathname) ||
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/api/auth") ||
-    pathname === "/favicon.ico";
-
-  if (!user && !isPublic) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    url.searchParams.set("next", pathname);
-    return NextResponse.redirect(url);
-  }
-
-  if (
-    user &&
-    (pathname === "/login" ||
-      pathname === "/signup" ||
-      pathname === "/forgot-password")
-  ) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/";
-    url.searchParams.delete("next");
-    return NextResponse.redirect(url);
-  }
-
-  return response;
-}
+// Validates the session cookie, refreshes tokens, and redirects
+// unauthenticated requests to /login. Public paths (auth pages, the
+// /api/auth proxy, static assets) are excluded via the matcher — pages
+// themselves still gate with requireEmployee()/requireRole().
+export const proxy = auth.middleware({ loginUrl: "/login" });
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)"],
+  matcher: [
+    "/((?!_next|favicon.ico|login|signup|forgot-password|reset-password|api/auth|.*\\..*).*)",
+  ],
 };

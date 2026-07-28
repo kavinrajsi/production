@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { requireRole } from "@/lib/auth/requireRole";
 import { createEquipment } from "@/lib/db/equipment";
 
@@ -9,9 +8,8 @@ export async function POST(request) {
   if (!body?.name) {
     return NextResponse.json({ error: "Name is required" }, { status: 400 });
   }
-  const supabase = await createClient();
   try {
-    const row = await createEquipment(supabase, body, ctx.employee.id);
+    const row = await createEquipment(body, ctx.employee.id);
     return NextResponse.json(row, { status: 201 });
   } catch (e) {
     return NextResponse.json(

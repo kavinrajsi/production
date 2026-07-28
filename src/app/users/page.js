@@ -1,5 +1,5 @@
 import { requireEmployee } from "@/lib/auth/currentEmployee";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { listEmployees, rolesByEmployeeIds } from "@/lib/db/employees";
 
 export const dynamic = "force-dynamic";
 
@@ -9,44 +9,17 @@ export default async function UsersPage({ searchParams }) {
   const q = (sp.q || "").toString().trim();
   const statusFilter = (sp.status || "active").toString();
 
-  const admin = createAdminClient();
-  let query = admin
-    .from("employees")
-    .select(
-      "id, first_name, middle_name, last_name, work_email, designation, department, employee_status, employee_type"
-    )
-    .order("first_name", { ascending: true });
-
-  if (statusFilter && statusFilter !== "all") {
-    query = query.eq("employee_status", statusFilter);
-  }
-  if (q) {
-    const like = `%${q}%`;
-    query = query.or(
-      [
-        `first_name.ilike.${like}`,
-        `last_name.ilike.${like}`,
-        `work_email.ilike.${like}`,
-        `designation.ilike.${like}`,
-        `department.ilike.${like}`,
-      ].join(",")
-    );
+  let employees = [];
+  let error = null;
+  try {
+    employees = await listEmployees({ q, status: statusFilter });
+  } catch (e) {
+    error = e;
   }
 
-  const { data: employees, error } = await query;
-  const ids = (employees ?? []).map((e) => e.id);
-
-  let rolesByEmployee = {};
-  if (ids.length) {
-    const { data: roleRows } = await admin
-      .from("employee_roles")
-      .select("employee_id, roles(name)")
-      .in("employee_id", ids);
-    for (const r of roleRows ?? []) {
-      const k = r.employee_id;
-      (rolesByEmployee[k] ||= []).push(r.roles?.name);
-    }
-  }
+  const rolesByEmployee = await rolesByEmployeeIds(
+    (employees ?? []).map((e) => e.id)
+  ).catch(() => ({}));
 
   return (
     <div className="stack">

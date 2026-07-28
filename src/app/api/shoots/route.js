@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireEmployee } from "@/lib/auth/currentEmployee";
-import { createAdminClient } from "@/lib/supabase/admin";
 import {
   createShootWithEquipment,
   getAdminNotifyRecipients,
+  getShoot,
 } from "@/lib/db/shoots";
 import { sendEmail } from "@/lib/email/zepto";
 import { shootCreatedEmail } from "@/lib/email/templates/shootCreated";
@@ -24,8 +24,6 @@ export async function POST(request) {
     );
   }
 
-  const admin = createAdminClient();
-
   const shootPayload = {
     photographer_id: ctx.employee.id,
     title: body.shoot.title,
@@ -39,7 +37,7 @@ export async function POST(request) {
 
   let inserted;
   try {
-    inserted = await createShootWithEquipment(admin, {
+    inserted = await createShootWithEquipment({
       shoot: shootPayload,
       items: body.items || [],
     });
@@ -52,18 +50,15 @@ export async function POST(request) {
   }
 
   // Resolve item details for the email body.
-  const { data: itemRows } = await admin
-    .from("production_shoot_equipment")
-    .select("quantity, equipment:equipment_id(name, category)")
-    .eq("shoot_id", inserted.id);
-  const items = (itemRows ?? []).map((r) => ({
+  const withItems = await getShoot(inserted.id).catch(() => null);
+  const items = (withItems?.items ?? []).map((r) => ({
     name: r.equipment?.name,
     category: r.equipment?.category,
     quantity: r.quantity,
   }));
 
   // Fire-and-forget admin email.
-  getAdminNotifyRecipients(admin)
+  getAdminNotifyRecipients()
     .then(async (recipients) => {
       if (!recipients.length) return;
       const { subject, html, text } = shootCreatedEmail({

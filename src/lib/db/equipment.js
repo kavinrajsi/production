@@ -1,69 +1,66 @@
-export async function listEquipment(supabase, { includeInactive = false } = {}) {
-  let q = supabase
-    .from("production_equipment")
-    .select("id, name, description, category, quantity, image_url, is_active, created_at")
-    .order("category", { ascending: true, nullsFirst: false })
-    .order("name", { ascending: true });
-  if (!includeInactive) q = q.eq("is_active", true);
-  const { data, error } = await q;
-  if (error) throw error;
-  return data ?? [];
+import { sql } from "./client";
+
+export async function listEquipment({ includeInactive = false } = {}) {
+  return await sql`
+    select id, name, description, category, quantity, image_url, is_active, created_at
+    from production_equipment
+    where ${includeInactive} or is_active
+    order by category asc nulls last, name asc
+  `;
 }
 
-export async function getEquipment(supabase, id) {
-  const { data, error } = await supabase
-    .from("production_equipment")
-    .select("*")
-    .eq("id", id)
-    .maybeSingle();
-  if (error) throw error;
-  return data;
+export async function getEquipment(id) {
+  if (!/^\d+$/.test(String(id))) return null;
+  const rows = await sql`
+    select * from production_equipment where id = ${id}
+  `;
+  return rows[0] ?? null;
 }
 
-export async function createEquipment(supabase, payload, createdBy) {
-  const { data, error } = await supabase
-    .from("production_equipment")
-    .insert({
-      name: payload.name,
-      description: payload.description || null,
-      category: payload.category || null,
-      quantity: payload.quantity ?? 1,
-      image_url: payload.image_url || null,
-      is_active: payload.is_active ?? true,
-      created_by: createdBy ?? null,
-    })
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
+export async function createEquipment(payload, createdBy) {
+  const rows = await sql`
+    insert into production_equipment (name, description, category, quantity, image_url, is_active, created_by)
+    values (
+      ${payload.name},
+      ${payload.description || null},
+      ${payload.category || null},
+      ${payload.quantity ?? 1},
+      ${payload.image_url || null},
+      ${payload.is_active ?? true},
+      ${createdBy ?? null}
+    )
+    returning *
+  `;
+  return rows[0];
 }
 
-export async function updateEquipment(supabase, id, payload) {
-  const update = {};
-  for (const k of [
-    "name",
-    "description",
-    "category",
-    "quantity",
-    "image_url",
-    "is_active",
-  ]) {
-    if (k in payload) update[k] = payload[k];
+const UPDATABLE = [
+  "name",
+  "description",
+  "category",
+  "quantity",
+  "image_url",
+  "is_active",
+];
+
+export async function updateEquipment(id, payload) {
+  const sets = [];
+  const values = [];
+  for (const k of UPDATABLE) {
+    if (k in payload) {
+      values.push(payload[k]);
+      sets.push(`${k} = $${values.length}`);
+    }
   }
-  const { data, error } = await supabase
-    .from("production_equipment")
-    .update(update)
-    .eq("id", id)
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
+  if (!sets.length) return getEquipment(id);
+  values.push(id);
+  const rows = await sql.query(
+    `update production_equipment set ${sets.join(", ")} where id = $${values.length} returning *`,
+    values
+  );
+  return rows[0];
 }
 
-export async function deleteEquipment(supabase, id) {
-  const { error } = await supabase
-    .from("production_equipment")
-    .delete()
-    .eq("id", id);
-  if (error) throw error;
+export async function deleteEquipment(id) {
+  await sql`delete from production_equipment where id = ${id}`;
 }

@@ -1,9 +1,12 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getAuthUser } from "@/lib/auth/currentEmployee";
 import ForgotPasswordForm from "./ForgotPasswordForm";
 
 export const dynamic = "force-dynamic";
 
-export default function ForgotPasswordPage() {
+export default async function ForgotPasswordPage() {
+  if (await getAuthUser()) redirect("/");
   return (
     <div className="stack" style={{ maxWidth: 360, margin: "40px auto" }}>
       <h1>Forgot password</h1>

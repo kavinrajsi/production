@@ -1,36 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-import { isAllowedEmail, EMAIL_DOMAIN_ERROR } from "@/lib/auth/emailDomain";
+import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { authClient } from "@/lib/auth/client";
 
 export default function ResetPasswordForm() {
   const router = useRouter();
-  const [ready, setReady] = useState(false);
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token");
+
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [err, setErr] = useState(null);
   const [info, setInfo] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [allowed, setAllowed] = useState(false);
 
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data?.user) {
-        setErr(
-          "This reset link is invalid or has expired. Request a new one."
-        );
-      } else if (!isAllowedEmail(data.user.email)) {
-        setErr(EMAIL_DOMAIN_ERROR);
-        supabase.auth.signOut().catch(() => {});
-      } else {
-        setAllowed(true);
-      }
-      setReady(true);
-    });
-  }, []);
+  if (!token) {
+    return (
+      <div className="alert error">
+        This reset link is invalid or has expired. Request a new one.
+      </div>
+    );
+  }
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -47,27 +38,20 @@ export default function ResetPasswordForm() {
     }
 
     setLoading(true);
-    const supabase = createClient();
-    const { error } = await supabase.auth.updateUser({ password });
+    const { error } = await authClient.resetPassword({
+      newPassword: password,
+      token,
+    });
     setLoading(false);
 
     if (error) {
-      setErr(error.message);
+      setErr(error.message || "Reset failed.");
       return;
     }
-    setInfo("Password updated. Redirecting…");
+    setInfo("Password updated. Redirecting to sign in…");
     setTimeout(() => {
-      router.replace("/");
-      router.refresh();
+      router.replace("/login");
     }, 800);
-  }
-
-  if (!ready) {
-    return <div className="muted">Loading…</div>;
-  }
-
-  if (!allowed) {
-    return err ? <div className="alert error">{err}</div> : null;
   }
 
   return (

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { authClient } from "@/lib/auth/client";
 import {
   isAllowedEmail,
   EMAIL_DOMAIN_ERROR,
@@ -24,14 +24,10 @@ export default function LoginForm({ next }) {
       return;
     }
     setLoading(true);
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { error } = await authClient.signIn.email({ email, password });
     setLoading(false);
     if (error) {
-      setErr(error.message);
+      setErr(error.message || "Sign in failed.");
       return;
     }
     router.replace(next || "/");

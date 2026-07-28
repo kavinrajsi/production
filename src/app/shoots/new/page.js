@@ -1,4 +1,3 @@
-import { createClient } from "@/lib/supabase/server";
 import { requireEmployee } from "@/lib/auth/currentEmployee";
 import { listEquipment } from "@/lib/db/equipment";
 import NewShootForm from "./NewShootForm";
@@ -7,8 +6,7 @@ export const dynamic = "force-dynamic";
 
 export default async function NewShootPage() {
   const ctx = await requireEmployee();
-  const supabase = await createClient();
-  const equipment = await listEquipment(supabase);
+  const equipment = await listEquipment();
 
   return (
     <div className="stack">

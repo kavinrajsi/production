@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { handleUpload } from "@vercel/blob/client";
 import { requireEmployee } from "@/lib/auth/currentEmployee";
-import { createAdminClient } from "@/lib/supabase/admin";
 import {
   canUploadPhotoKind,
   getShoot,
@@ -18,8 +17,7 @@ export async function POST(request, { params }) {
       request,
       onBeforeGenerateToken: async (pathname, clientPayload) => {
         const ctx = await requireEmployee();
-        const admin = createAdminClient();
-        const shoot = await getShoot(admin, id);
+        const shoot = await getShoot(id);
         if (!shoot) {
           throw new Error("Shoot not found");
         }

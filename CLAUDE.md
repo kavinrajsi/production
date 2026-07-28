@@ -13,13 +13,17 @@ npm run lint    # eslint (eslint-config-next)
 
 There is no test runner configured.
 
+Apply schema changes with `psql "$DATABASE_URL" -f db/schema.sql` (idempotent
+`create table if not exists` / `create or replace function`).
+
 ## Stack
 
 - Next.js 16 App Router, **plain JavaScript** (no TypeScript). React 19.
 - React Compiler is **enabled** (`next.config.mjs`) — do not add manual
   `useMemo` / `useCallback` without a measured reason.
-- Supabase for auth + Postgres. ZeptoMail (Zoho) for email. Vercel Blob for
-  equipment image storage.
+- Neon Postgres via `@neondatabase/serverless`. Neon Auth
+  (`@neondatabase/auth`, Better Auth-based) for email/password auth.
+  ZeptoMail (Zoho) for email. Vercel Blob for equipment image storage.
 - Path alias `@/*` → `src/*` (`jsconfig.json`).
 
 ## Architecture
@@ -28,57 +32,61 @@ There is no test runner configured.
 
 Cross-cutting and easy to miss:
 
-1. `src/proxy.js` is the Next.js middleware (it just happens to be named
-   `proxy` instead of `middleware`). It refreshes the Supabase session on every
-   request and redirects unauthenticated traffic to `/login`. Allowlist:
-   `/login`, `/_next/*`, `/api/auth/*`, `/favicon.ico`.
-2. Server-side code reads the session via helpers in
+1. `src/lib/auth/server.js` exports the server `auth` instance
+   (`createNeonAuth`). `src/lib/auth/client.js` exports the browser
+   `authClient` (`createAuthClient` — talks to the app's own `/api/auth/*`
+   proxy, needs no env).
+2. `src/app/api/auth/[...path]/route.js` mounts `auth.handler()` — it proxies
+   all Better Auth endpoints (sign-in/email, sign-up/email, sign-out,
+   request-password-reset, reset-password, get-session) to Neon Auth.
+3. `src/proxy.js` is the Next.js middleware (named `proxy`, Next 16
+   convention). It is `auth.middleware({ loginUrl: "/login" })`; public paths
+   (`/login`, `/signup`, `/forgot-password`, `/reset-password`, `/api/auth`,
+   assets) are excluded via the matcher, so signed-in redirects away from auth
+   pages happen in those pages themselves via `getAuthUser()`.
+4. Server-side code reads the session via helpers in
    `src/lib/auth/currentEmployee.js`:
    - `getCurrentEmployee()` returns `{ user, employee, roles }`, cached per
      request via React `cache()`.
    - `requireEmployee()` redirects to `/login` when missing.
    - `requireRole("admin")` (in `requireRole.js`) redirects to
      `/?error=forbidden` when the role is absent.
-3. Auth users are linked to `employees` rows by `work_email`
-   (case-insensitive). Roles come from `employee_roles` → `roles`. Today only
-   `admin` is checked, but `ctx.roles` is a list — treat it as such.
+5. Auth users (managed by Neon Auth) are linked to `employees` rows by
+   `work_email` (case-insensitive). Roles come from `employee_roles` →
+   `roles`. Today only `admin` is checked, but `ctx.roles` is a list — treat
+   it as such.
+6. Sign-ups are restricted to `@madarth.com` client-side
+   (`src/lib/auth/emailDomain.js`); the real gate is that `requireEmployee()`
+   rejects any auth user without a matching `employees` row.
 
 Gate every server action, route handler, and protected page with
 `requireEmployee()` or `requireRole(...)` at the top. The middleware blocks
-unauthenticated traffic but does **not** enforce roles.
-
-### Three Supabase clients — pick the right one
-
-In `src/lib/supabase/`:
-
-| Factory                   | Use from                            | Auth context                          |
-| ------------------------- | ----------------------------------- | ------------------------------------- |
-| `client.createClient`     | Client components (`"use client"`)  | Browser session via cookies           |
-| `server.createClient`     | Server components / route handlers  | Server session via cookies (RLS on)   |
-| `admin.createAdminClient` | Server only                         | Service role — **bypasses RLS**       |
-
-Default to the server client so RLS applies. Use the admin client only when
-you genuinely need to bypass RLS (cross-user writes, admin emails). The admin
-client is what `POST /api/shoots` uses to insert a shoot on behalf of the
-employee and run the availability re-check.
+unauthenticated traffic but does **not** enforce roles, and there is no RLS —
+the app layer is the only authorization boundary.
 
 ### Data layer convention
 
-Queries live in `src/lib/db/*.js` and accept a Supabase client as the **first
-argument** — the caller decides which client (and therefore which auth
-context) to use. Do not reach for `from("...")` directly inside pages or
-routes; add or extend a helper instead.
+- `src/lib/db/client.js` exports `sql` (Neon HTTP driver, one-shot queries as
+  tagged templates) and `withTransaction(fn)` (WebSocket `Pool`, interactive
+  transactions; `fn` gets a pg-style client).
+- Queries live in `src/lib/db/*.js` (`equipment`, `shoots`, `employees`,
+  `activity`). Do not write SQL inside pages or routes; add or extend a
+  helper instead.
+- Helpers that used to return PostgREST nested objects keep those shapes via
+  `json_build_object` (e.g. `listShoots` rows have an `employees` object) so
+  UI components stay unchanged. Preserve this when editing queries.
 
 ### Equipment availability
 
-Availability is computed by the Postgres RPC
-`equipment_available_qty(p_equipment_id, p_start, p_end, p_exclude_shoot_id)`.
-`createShootWithEquipment` in `src/lib/db/shoots.js` inserts the shoot, links
-the items, then re-runs the RPC for every line item. If any availability is
-negative, it deletes the just-inserted shoot and throws an error with
-`err.code = "AVAILABILITY"`. Route handlers map that sentinel to HTTP 409
-(see `src/app/api/shoots/route.js`). Preserve this pattern when changing
-booking logic.
+Availability is computed by the Postgres function
+`equipment_available_qty(p_equipment_id, p_start, p_end, p_exclude_shoot_id)`
+(defined in `db/schema.sql`). `createShootWithEquipment` in
+`src/lib/db/shoots.js` runs in a single transaction: insert the shoot, lock
+the equipment rows (`for update`), insert the line items, then re-check the
+function for every item. Any negative availability throws an error with
+`err.code = "AVAILABILITY"`, rolling the whole transaction back. Route
+handlers map that sentinel to HTTP 409 (see `src/app/api/shoots/route.js`).
+Preserve this pattern when changing booking logic.
 
 ### Image uploads → Vercel Blob
 
@@ -89,12 +97,11 @@ the client-upload pattern (`@vercel/blob/client`):
 - Server route `src/app/api/upload/route.js` uses `handleUpload` from
   `@vercel/blob/client` to mint a one-time upload token, gated by
   `requireRole("admin")` inside `onBeforeGenerateToken`.
-- `production_equipment.image_url` stores the resulting public Blob URL — the
-  DB schema is unchanged, just a different host.
+- `production_equipment.image_url` stores the resulting public Blob URL.
 
 Requires `BLOB_READ_WRITE_TOKEN` (auto-injected on Vercel; `vercel env pull`
-for local). Uploads are restricted to JPEG/PNG/WebP/GIF up to 10 MB and get a
-random suffix to avoid collisions. Don't switch to server-side `put()` for new
+for local). Uploads are restricted to JPEG/PNG/WebP/GIF and get a random
+suffix to avoid collisions. Don't switch to server-side `put()` for new
 upload paths unless the file size is small and known — the 4.5 MB serverless
 body limit will bite.
 
@@ -140,8 +147,9 @@ never blocks the API response. Recipients come from
 
 Required (see `README.md` for the full template):
 
-- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY` (server only)
+- `DATABASE_URL` (Neon Postgres, pooled connection string)
+- `NEON_AUTH_BASE_URL`, `NEON_AUTH_COOKIE_SECRET` (≥ 32 chars; enable Auth on
+  the Neon project to get the base URL)
 - `ZEPTO_API_TOKEN`, `ZEPTO_API_URL`, `ZEPTO_FROM_EMAIL`, `ZEPTO_FROM_NAME`
 - `ADMIN_NOTIFY_EMAILS` (optional fallback recipient list)
 - `BLOB_READ_WRITE_TOKEN` (server only, for Vercel Blob image uploads)

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { requireEmployee } from "@/lib/auth/currentEmployee";
-import { createAdminClient } from "@/lib/supabase/admin";
 import {
   canUploadPhotoKind,
   getShoot,
@@ -40,8 +39,7 @@ export async function POST(request, { params }) {
     );
   }
 
-  const admin = createAdminClient();
-  const shoot = await getShoot(admin, id);
+  const shoot = await getShoot(id);
   if (!shoot) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
@@ -62,7 +60,7 @@ export async function POST(request, { params }) {
   }
 
   try {
-    const row = await recordShootPhoto(admin, {
+    const row = await recordShootPhoto({
       shootId: shoot.id,
       kind,
       url,

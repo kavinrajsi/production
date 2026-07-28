@@ -1,5 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
 import { requireRole } from "@/lib/auth/requireRole";
+import { listActivityLogs } from "@/lib/db/activity";
 
 export const dynamic = "force-dynamic";
 
@@ -11,18 +11,16 @@ function fmt(iso) {
 
 export default async function ActivityPage({ searchParams }) {
   await requireRole("admin");
-  const supabase = await createClient();
   const sp = (await searchParams) || {};
   const table = sp.table || "";
 
-  let q = supabase
-    .from("activity_logs")
-    .select("id, created_at, user_email, action, table_name, record_id, metadata")
-    .order("created_at", { ascending: false })
-    .limit(200);
-  if (table) q = q.eq("table_name", table);
-
-  const { data: logs, error } = await q;
+  let logs = [];
+  let error = null;
+  try {
+    logs = await listActivityLogs({ table });
+  } catch (e) {
+    error = e;
+  }
 
   return (
     <div className="stack">

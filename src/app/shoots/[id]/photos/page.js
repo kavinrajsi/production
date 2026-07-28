@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
 import { requireEmployee } from "@/lib/auth/currentEmployee";
 import {
   canUploadPhotoKind,
@@ -54,11 +53,10 @@ function PhotoGrid({ photos }) {
 export default async function ShootPhotosPage({ params }) {
   const ctx = await requireEmployee();
   const { id } = await params;
-  const supabase = await createClient();
-  const shoot = await getShoot(supabase, id);
+  const shoot = await getShoot(id);
   if (!shoot) notFound();
 
-  const photos = await listShootPhotos(supabase, shoot.id);
+  const photos = await listShootPhotos(shoot.id);
   const isAdmin = ctx.roles.includes("admin");
   const isOwner = shoot.photographer_id === ctx.employee.id;
   const canEdit = isAdmin || isOwner;

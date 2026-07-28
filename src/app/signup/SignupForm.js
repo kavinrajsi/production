@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { authClient } from "@/lib/auth/client";
 import {
   isAllowedEmail,
   EMAIL_DOMAIN_ERROR,
@@ -37,30 +37,25 @@ export default function SignupForm() {
     }
 
     setLoading(true);
-    const supabase = createClient();
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await authClient.signUp.email({
       email,
       password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/api/auth/callback?next=/`,
-      },
+      name: email.split("@")[0],
     });
     setLoading(false);
 
     if (error) {
-      setErr(error.message);
+      setErr(error.message || "Sign up failed.");
       return;
     }
 
-    if (data?.session) {
+    if (data?.token || data?.session) {
       router.replace("/");
       router.refresh();
       return;
     }
 
-    setInfo(
-      "Check your inbox to confirm your email before signing in."
-    );
+    setInfo("Check your inbox to confirm your email before signing in.");
   }
 
   return (

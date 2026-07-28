@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { requireEmployee } from "@/lib/auth/currentEmployee";
-import { createAdminClient } from "@/lib/supabase/admin";
 import {
   canTransition,
   getShoot,
@@ -16,8 +15,7 @@ export async function PATCH(request, { params }) {
     return NextResponse.json({ error: "status is required" }, { status: 400 });
   }
 
-  const admin = createAdminClient();
-  const shoot = await getShoot(admin, id);
+  const shoot = await getShoot(id);
   if (!shoot) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
@@ -36,7 +34,7 @@ export async function PATCH(request, { params }) {
   }
 
   try {
-    const updated = await updateShootStatus(admin, id, next);
+    const updated = await updateShootStatus(id, next);
     return NextResponse.json(updated);
   } catch (e) {
     return NextResponse.json(
